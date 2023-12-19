@@ -3,6 +3,9 @@
 #include <atk/atk.h>
 #include <gdk/gdk.h>
 
+// I pretend to have a widget class hierarchy, that's the base.
+// Base handles focus in/out, keys and such like.
+// It also has relation to an accessibility object.
 struct Item
 {
     void (*focus)(struct Item *);

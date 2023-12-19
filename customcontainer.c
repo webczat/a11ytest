@@ -1,6 +1,7 @@
 #include "customcontainer.h"
 #include "item.h"
 
+// Too lazy to declare that in headers like sane people.
 extern struct Item *widgets[2];
 extern int focused;
 
@@ -12,12 +13,15 @@ static AtkObject *ref_child(AtkObject *self, gint child);
 static void state_change(AtkObject *self, const gchar *state, gboolean res, gpointer data);
 static AtkStateSet *ref_state_set(AtkObject *self);
 
+// Standard gobject initialization routines.
 void test_custom_container_accessible_class_init(TestCustomContainerAccessibleClass *cls)
 {
     AtkObjectClass *a = ATK_OBJECT_CLASS(cls);
     a->initialize = accessible_initialize;
     a->get_n_children = get_n_children;
     a->ref_child = ref_child;
+
+    // Suppress focus events for that widget even though it's focusable, explanation below.
     a->focus_event = NULL;
     a->ref_state_set = ref_state_set;
 }
@@ -26,6 +30,7 @@ void test_custom_container_accessible_init(TestCustomContainerAccessible *self)
 {
 }
 
+// Post initialization, mainly setting role of the object as visible to screenreader.
 void accessible_initialize(AtkObject *obj, gpointer data)
 {
     ATK_OBJECT_CLASS(test_custom_container_accessible_parent_class)->initialize(obj, data);
@@ -33,11 +38,13 @@ void accessible_initialize(AtkObject *obj, gpointer data)
     g_signal_connect(G_OBJECT(obj), "state-change::focused", G_CALLBACK(state_change), NULL);
 }
 
+// Indicates two children, even though the peer widget has none from gtk perspective.
 gint get_n_children(AtkObject *self)
 {
     return 2;
 }
 
+// Gives out accessible objects for child buttons.
 AtkObject *ref_child(AtkObject *self, gint child)
 {
     if (child < 0 || child > 1)
@@ -46,6 +53,7 @@ AtkObject *ref_child(AtkObject *self, gint child)
     }
 
     AtkObject *o = item_get_accessible(widgets[child]);
+
     if (o)
     {
         g_object_ref(G_OBJECT(o));
@@ -53,6 +61,10 @@ AtkObject *ref_child(AtkObject *self, gint child)
     return o;
 }
 
+// This method overrides GtkWidgetAccessible's method, but
+// eats everything related to focus.
+// It's because actual focus is on buttons and we made container focusable just to make it accept
+// keyboard events, but screenreader shouldn't see this.
 AtkStateSet *ref_state_set(AtkObject *self)
 {
     AtkStateSet *s = ATK_OBJECT_CLASS(test_custom_container_accessible_parent_class)->ref_state_set(self);
@@ -61,9 +73,9 @@ AtkStateSet *ref_state_set(AtkObject *self)
     return s;
 }
 
+// For the same reason as above, suppress focus change events coming.
 void state_change(AtkObject *self, const gchar *state, gboolean res, gpointer data)
 {
-    printf("boo\n");
     g_signal_stop_emission_by_name(self, "state-change::focused");
 }
 
@@ -83,6 +95,8 @@ void test_custom_container_init(TestCustomContainer *self)
 {
 }
 
+// Handle focus coming to canvas.
+// Focus is permanently grabbed but it can be lost or regained when switching windows.
 gboolean focus_in(GtkWidget *widget, GdkEventFocus *event)
 {
     GTK_WIDGET_CLASS(test_custom_container_parent_class)->focus_in_event(widget, event);
@@ -90,6 +104,7 @@ gboolean focus_in(GtkWidget *widget, GdkEventFocus *event)
     return FALSE;
 }
 
+// Handle focus leaving parent canvas, usually by switching windows.
 gboolean focus_out(GtkWidget *widget, GdkEventFocus *event)
 {
     GTK_WIDGET_CLASS(test_custom_container_parent_class)->focus_out_event(widget, event);
@@ -97,6 +112,7 @@ gboolean focus_out(GtkWidget *widget, GdkEventFocus *event)
     return FALSE;
 }
 
+// Constructor.
 GtkWidget *test_custom_container_new(void)
 {
     return GTK_WIDGET(g_object_new(TEST_TYPE_CUSTOM_CONTAINER, NULL));
